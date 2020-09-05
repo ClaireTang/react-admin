@@ -1,13 +1,19 @@
 import React, { Component,Fragment } from 'react'
 // import './index.scss'
-import { Form, Input, Button, Row, Col } from 'antd';
+import { Form, Input, Button, Row, Col, message, PoweroffOutlined } from 'antd';
 import { UserOutlined,LockOutlined  } from '@ant-design/icons';
 import { valid_pwd } from '../../util'
-import { Login } from '../../api/account'
+import { Login,GetCode } from '../../api/account'
 export default class LoginForm extends Component {
     constructor() {
         super()
-        this.state = {}
+        this.state = {
+            username: '',
+            code_button_loading: false,
+            code_button_content: '获取验证码',
+            code_button_disabled: false
+
+        }
     }
     onFinish = values => {
         Login().then(res => {
@@ -17,10 +23,61 @@ export default class LoginForm extends Component {
         })
         console.log('Received values of form: ', values);
     };
+    getCode = () => {
+        if(!this.state.username) {
+            message.error('邮箱不能为空')
+        }
+        this.setState({
+            code_button_loading: true,
+            code_button_content: '发送中'
+        })
+        const requestData = {
+            username: this.state.username,
+            module: "login"
+        }
+        GetCode(requestData).then(res => {
+            this.countTime()
+        }).catch(err => {
+            this.setState({
+                code_button_loading: false,
+                code_button_content: '重新发送'
+            })
+        })
+    }
+    countTime = () => {
+        let timer = null
+        let sec = 5
+        this.setState({
+            code_button_loading: false,
+            code_button_disabled: true,
+            code_button_content: `${sec}s`
+        })
+        timer = setInterval(()=>{
+            sec--
+            if(sec <= 0) {
+                this.setState({
+                    code_button_disabled: false,
+                    code_button_content: '重新发送'
+                })
+                clearInterval(timer)
+                return false
+            }
+            this.setState({
+                code_button_content: `${sec}s`
+            })
+        },1000)
+    }
+    inputChange = ( e ) => {
+        let value = e.target.value
+        this.setState({
+            username: value
+        })
+    }
     toggleForm = () => {
         this.props.switchForm('regist')
     }
     render() {
+        const {username,code_button_loading,code_button_content,code_button_disabled} = this.state
         return (
             <Fragment>
                 <div className="form-header">
@@ -41,7 +98,7 @@ export default class LoginForm extends Component {
                             { required: true, message: '用户名不能为空!' }, 
                             { type: 'email',message: '邮箱格式不正确!'}
                         ]}>
-                            <Input prefix={<UserOutlined className="site-form-item-icon" />} placeholder="Email" />
+                            <Input value={username} onChange={this.inputChange} prefix={<UserOutlined className="site-form-item-icon" />} placeholder="Email" />
                         </Form.Item>
                         <Form.Item name="password" rules={[
                             { required: true, message: '密码不能为空!' },
@@ -58,7 +115,7 @@ export default class LoginForm extends Component {
                                     <Input prefix={<UserOutlined className="site-form-item-icon" />} placeholder="code" />
                                 </Col>
                                 <Col className="gutter-row" span={9}>
-                                    <Button type="danger" block>获取验证码</Button>
+                                    <Button type="danger" disabled={code_button_disabled} loading={code_button_loading} block onClick={this.getCode}>{code_button_content}</Button>
                                 </Col>
                             </Row>
                         </Form.Item>
